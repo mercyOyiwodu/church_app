@@ -15,11 +15,12 @@ const userManagementRoutes = require('./routes/userManagement');
 const systemSettingsRoutes = require('./routes/systemSettings');
 const auditLogRoutes = require('./routes/auditLog');
 const unitLeaderRoutes = require('./routes/unitLeader');
+const unitAssignmentRoutes = require('./routes/unitAssignment');
+const { swaggerSpec, swaggerUi } = require('./config/swagger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Connect to database
 connectDB();
 
 // Security middleware
@@ -28,32 +29,39 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
   credentials: true
 }));
-
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
-
-// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Logging middleware
 app.use(morgan('combined'));
 
-// Health check endpoint
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Church API Documentation',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    docExpansion: 'none',
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true
+  }
+}));
+
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     message: 'Church Backend API is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    documentation: '/api-docs'
   });
 });
 
-// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/admin', adminRoutes);
@@ -62,8 +70,8 @@ app.use('/api/admin/users', userManagementRoutes);
 app.use('/api/settings', systemSettingsRoutes);
 app.use('/api/audit', auditLogRoutes);
 app.use('/api/unit-leaders', unitLeaderRoutes);
+app.use('/api/unit-assignments', unitAssignmentRoutes);
 
-// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ 
     success: false, 
